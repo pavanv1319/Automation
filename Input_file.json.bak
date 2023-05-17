@@ -1,0 +1,17 @@
+{
+  "UK": {
+    "SOURCE": {
+      "LOCATION": "C:\\Users\\Pavan\\OneDrive\\Documents\\SAMPLE_FILE.csv",
+      "FORMAT": "csv",
+      "HEADER": "true"
+    },
+    "TARGET": {
+      "LOCATION": "C:\\Users\\Pavan\\OneDrive\\Documents",
+	  "FILE_NAME": "Target_file",
+      "FORMAT": "delta",
+      "HEADER": "true",	
+	  "MODE":"append",
+      "CURATION_SELECT": "['*',lit(str(uuid.uuid4())).alias('batch_id'),lit(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))).alias('ingestion_tms')]"
+    }
+  }
+}

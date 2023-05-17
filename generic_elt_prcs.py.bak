@@ -1,0 +1,92 @@
+
+'''
+
+#------------------------------------------------------------------------------------
+
+# Script : generic_elt_prcs.py
+# Description : Functionality of the script is to ingest data file seamlessly appending couple of audit columns.
+# Usage : spark-submit generic_elt_prcs.py Input_file.json
+
+#  Date             Version                    Created By                  Releae #NO
+#---------          -------                    ------------                ----------
+# 2023-05-13         1.0                        Pavan                    #<Change Request #>
+#------------------------------------------------------------------------------------
+
+'''
+
+
+# Importing liberies based on the needs.
+
+import logging,json,uuid,sys
+from datetime import datetime
+
+from pyspark import SparkConf, SparkContext
+from pyspark.sql.functions import *
+from pyspark.sql import SparkSession
+
+class FILELOAD:
+    def __init__(self, input_json):
+        try:
+        
+            # Creating the sparkContext
+            
+            conf = (SparkConf().setAppName("FileLoad"))
+            sc = SparkContext(conf=conf)
+            sc.setLogLevel("ERROR")
+            spark = SparkSession(sc)
+            df_param=self.spark_load(spark,input_json,'json','')
+            
+            # Source Location defination
+            
+            source_format=df_param.select(col('UK.SOURCE.FORMAT')).collect()[0][0]
+            source_location=df_param.select(col('UK.SOURCE.LOCATION')).collect()[0][0]
+            source_header=df_param.select(col('UK.SOURCE.HEADER')).collect()[0][0]
+            
+            # Target Location defination
+            
+            target_format=df_param.select(col('UK.TARGET.FORMAT')).collect()[0][0]
+            target_location=df_param.select(col('UK.TARGET.LOCATION')).collect()[0][0]
+            target_header=df_param.select(col('UK.TARGET.HEADER')).collect()[0][0]
+            target_filename=df_param.select(col('UK.TARGET.FILE_NAME')).collect()[0][0]
+            target_mode=df_param.select(col('UK.TARGET.MODE')).collect()[0][0]
+            
+            # Curation on adding columns (controled parameter wise)
+            
+            curation_select=df_param.select(col('UK.TARGET.CURATION_SELECT')).collect()[0][0]
+            curation_select_eval=eval(curation_select)
+            
+            df_src=self.spark_load(spark,str(source_location),str(source_format),str(source_header))
+            
+            df_final=df_src.select(curation_select_eval)
+            retun_cd=self.write_file(df_final,target_format,target_location,target_filename,target_header,target_mode)
+            if retun_cd == 0:
+                logging.info("Target File has been created successfully!!")
+        except Exception as e:
+            raise
+    def spark_load(self, spark, in_path, in_filetype ,in_header=''):
+        try:
+            if in_filetype.lower() == 'json':
+                df=spark.read.option("multiline","true").json(str(in_path))
+            else:
+                df=spark.read.format(str(in_filetype)).option('mutiline','true').option('encoding','UTF-8').option('header',str(in_header)).load(str(in_path))
+            return df
+        except Exception as e:
+            raise
+    def write_file(self,df,target_format,target_location,target_filename,target_header,target_mode):
+        try:
+            df.coalesce(1).write.mode(str(target_mode)).format(str(target_format)).option('header',str(target_header)).save(str(target_location)+"\\"+str(target_filename))
+            return 0
+        except Exception as e:
+            raise
+if __name__=='__main__':
+    try:
+        logging.info("Initializing all the parameters")
+        param_file=sys.argv[1]
+        if param_file:
+            logging.info("Received parameter file")
+            File_Load=FILELOAD(param_file)
+        else:
+            raise "Parameter File is missing!!  "
+    except Exception as e:
+        logging.error(str(e))
+    
